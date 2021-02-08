@@ -17,6 +17,10 @@ namespace VeinComponent
 class RemoteProcedureData;
 }
 
+namespace VfCustomerdata {
+
+
+
 class CustomerDataSystem : public VeinEvent::EventSystem
 {
     Q_OBJECT
@@ -30,7 +34,7 @@ public:
         CDS_QFILEDEVICE_FILEERROR_BEGIN = QFileDevice::ReadError //if the resultCode is >= CDS_QFILEDEVICE_FILEERROR_BEGIN then it is a QFileDevice::FileError
     };
 
-    explicit CustomerDataSystem(QObject *t_parent = nullptr);
+    explicit CustomerDataSystem(QString p_customerDataPath,QObject *t_parent = nullptr);
 
     VF_COMPONENT(entityName, "EntityName", "Entity name")
     static constexpr QLatin1String s_entityName = modman_util::to_latin1("CustomerData");
@@ -100,8 +104,6 @@ private:
     void customerDataAdd(const QUuid &t_callId, const QVariantMap &t_parameters);
     VF_RPC(customerDataRemove, "customerDataRemove(QString fileName)", "fileName: the name of the file to be removed")
     void customerDataRemove(const QUuid &t_callId, const QVariantMap &t_parameters);
-    VF_RPC(customerDataSearch, "customerDataSearch(QVariantMap searchMap)", "searchMap: regular expression values in the map are tested against all files")
-    void customerDataSearch(const QUuid &t_callId, const QVariantMap &t_parameters);
     static constexpr QLatin1String s_customerDataSearchResultText = modman_util::to_latin1("CustomerDataSystem::searchResult");
     static constexpr QLatin1String s_cusomerDataRpcProgress = modman_util::to_latin1("CustomerDataSystem::progress");
     //base
@@ -151,6 +153,10 @@ private:
    */
     QHash<QUuid, QUuid> m_pendingRpcHash;
     QHash<QUuid, QFutureWatcher<QString> *> m_pendingSearchResultWatchers;
+
+    QString m_customerDataPath;
 };
+
+}
 
 #endif // CUSTOMERDATASYSTEM_H

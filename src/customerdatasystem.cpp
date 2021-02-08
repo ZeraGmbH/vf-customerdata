@@ -19,6 +19,7 @@
 #include <functional>
 
 using namespace VeinComponent;
+using namespace VfCustomerdata;
 
 const QHash<QString, QString> CustomerDataSystem::s_componentIntrospection = {
     {CustomerDataSystem::s_entityNameComponentName, CustomerDataSystem::s_entityNameComponentDescription},
@@ -57,8 +58,7 @@ const QHash<QString, QString> CustomerDataSystem::s_componentIntrospection = {
 
 const QHash<QString, QString> CustomerDataSystem::s_remoteProcedureIntrospection = {
     {CustomerDataSystem::s_customerDataAddProcedureName, CustomerDataSystem::s_customerDataAddProcedureDescription},
-    {CustomerDataSystem::s_customerDataRemoveProcedureName, CustomerDataSystem::s_customerDataRemoveProcedureDescription},
-    {CustomerDataSystem::s_customerDataSearchProcedureName, CustomerDataSystem::s_customerDataSearchProcedureDescription}
+    {CustomerDataSystem::s_customerDataRemoveProcedureName, CustomerDataSystem::s_customerDataRemoveProcedureDescription}
 };
 
 const QSet<QString> CustomerDataSystem::s_writeProtectedComponents = {
@@ -66,22 +66,22 @@ const QSet<QString> CustomerDataSystem::s_writeProtectedComponents = {
     CustomerDataSystem::s_introspectionComponentName,
 };
 
-CustomerDataSystem::CustomerDataSystem(QObject *t_parent) :
+CustomerDataSystem::CustomerDataSystem(QString p_customerDataPath,QObject *t_parent) :
     VeinEvent::EventSystem(t_parent),
     m_remoteProcedures{VF_RPC_BIND(customerDataAdd, std::bind(&CustomerDataSystem::customerDataAdd, this, std::placeholders::_1, std::placeholders::_2)),
-                       VF_RPC_BIND(customerDataRemove, std::bind(&CustomerDataSystem::customerDataRemove, this, std::placeholders::_1, std::placeholders::_2)),
-                       VF_RPC_BIND(customerDataSearch, std::bind(&CustomerDataSystem::customerDataSearch, this, std::placeholders::_1, std::placeholders::_2))}
+                       VF_RPC_BIND(customerDataRemove, std::bind(&CustomerDataSystem::customerDataRemove, this, std::placeholders::_1, std::placeholders::_2))},
+    m_customerDataPath(p_customerDataPath)
 {
-    Q_ASSERT(QString(MODMAN_CUSTOMERDATA_PATH).isEmpty() == false);
-    QFileInfo cDataFileInfo(MODMAN_CUSTOMERDATA_PATH);
+    Q_ASSERT(QString(m_customerDataPath).isEmpty() == false);
+    QFileInfo cDataFileInfo(m_customerDataPath);
     if(cDataFileInfo.exists() && cDataFileInfo.isDir() == false) {
-        qWarning() << "Invalid path to customer data, file is not a directory:" << MODMAN_CUSTOMERDATA_PATH;
+        qWarning() << "Invalid path to customer data, file is not a directory:" << m_customerDataPath;
     }
     else if(cDataFileInfo.exists() == false) {
         QDir customerdataDir;
-        qWarning() << "Customer data directory does not exist:" << MODMAN_CUSTOMERDATA_PATH;
-        if(customerdataDir.mkdir(MODMAN_CUSTOMERDATA_PATH) == false) {
-            qWarning() << "Could not create customerdata direcory:" << MODMAN_CUSTOMERDATA_PATH;
+        qWarning() << "Customer data directory does not exist:" << m_customerDataPath;
+        if(customerdataDir.mkdir(m_customerDataPath) == false) {
+            qWarning() << "Could not create customerdata direcory:" << m_customerDataPath;
         }
     }
 
@@ -116,7 +116,7 @@ bool CustomerDataSystem::processEvent(QEvent *t_event)
                         //prevent cases where different files exist with the same uppercase and lowercase name, as windows treats them as the same file (if they ever get copied to a windows host)
                         const QString fileName = cData->newValue().toString().toLower();
                         if(!fileName.isEmpty()) {
-                            bool jsonExists = QFile(QString("%1%2").arg(MODMAN_CUSTOMERDATA_PATH).arg(fileName)).exists();
+                            bool jsonExists = QFile(QString("%1%2").arg(m_customerDataPath).arg(fileName)).exists();
                             if(jsonExists) {
                                 if(parseCustomerDataFile(fileName) == true) {
                                     validated = true;
@@ -287,8 +287,8 @@ void CustomerDataSystem::unloadFile(){
 
 void CustomerDataSystem::writeCustomerdata()
 {
-    Q_ASSERT(QString(MODMAN_CUSTOMERDATA_PATH).isEmpty() == false);
-    QSaveFile customerDataFile(QString("%1%2").arg(MODMAN_CUSTOMERDATA_PATH).arg(m_currentCustomerFileName));
+    Q_ASSERT(QString(m_customerDataPath).isEmpty() == false);
+    QSaveFile customerDataFile(QString("%1%2").arg(m_customerDataPath).arg(m_currentCustomerFileName));
     customerDataFile.open(QIODevice::WriteOnly);
     customerDataFile.write(m_currentCustomerDocument.toJson(QJsonDocument::Indented));
     if(customerDataFile.commit() == false) {
@@ -314,9 +314,9 @@ void CustomerDataSystem::updateDataFile(QString t_componentName, QString t_newVa
 
 bool CustomerDataSystem::parseCustomerDataFile(const QString &t_fileName)
 {
-    Q_ASSERT(QString(MODMAN_CUSTOMERDATA_PATH).isEmpty() == false);
+    Q_ASSERT(QString(m_customerDataPath).isEmpty() == false);
     bool retVal = false;
-    QFile customerDataFile(QString("%1%2").arg(MODMAN_CUSTOMERDATA_PATH).arg(t_fileName));
+    QFile customerDataFile(QString("%1%2").arg(m_customerDataPath).arg(t_fileName));
     QJsonParseError parseError;
     if(customerDataFile.exists() && customerDataFile.open(QFile::ReadOnly)) {
         m_currentCustomerFileName = t_fileName;
@@ -439,7 +439,7 @@ void CustomerDataSystem::customerDataAdd(const QUuid &t_callId, const QVariantMa
             retVal.insert(VeinComponent::RemoteProcedureData::s_errorMessageString, QString("Invalid data for parameter: [fileName]"));
         }
         else {
-            QFile newCustomerDataFile(QString("%1%2").arg(MODMAN_CUSTOMERDATA_PATH).arg(fileName.toLower()));
+            QFile newCustomerDataFile(QString("%1%2").arg(m_customerDataPath).arg(fileName.toLower()));
             if(newCustomerDataFile.exists() == false) {
                 QFileInfo fileInfo(newCustomerDataFile);
                 QFileInfo dirInfo(fileInfo.dir().absolutePath());
@@ -503,7 +503,7 @@ void CustomerDataSystem::customerDataRemove(const QUuid &t_callId, const QVarian
             retVal.insert(VeinComponent::RemoteProcedureData::s_errorMessageString, QString("Invalid data for parameter: [fileName]"));
         }
         else {
-            QFile toDelete(QString("%1%2").arg(MODMAN_CUSTOMERDATA_PATH).arg(fileName));
+            QFile toDelete(QString("%1%2").arg(m_customerDataPath).arg(fileName));
             if(fileName.isEmpty() == false && toDelete.exists()) {
                 if(toDelete.remove() == true) {
                     retVal.insert(VeinComponent::RemoteProcedureData::s_resultCodeString, RPCResultCodes::CDS_SUCCESS);
@@ -531,76 +531,6 @@ void CustomerDataSystem::customerDataRemove(const QUuid &t_callId, const QVarian
     rpcFinished(t_callId, s_customerDataRemoveProcedureName, retVal);
 }
 
-void CustomerDataSystem::customerDataSearch(const QUuid &t_callId, const QVariantMap &t_parameters)
-{
-    QSet<QString> requiredParamKeys = {"searchMap"};
-    const QVariantMap parameters = t_parameters.value(VeinComponent::RemoteProcedureData::s_parameterString).toMap();
-    QStringList parameterNameList(parameters.keys());
-    requiredParamKeys.subtract(QSet<QString>(parameterNameList.begin(), parameterNameList.end()));
-
-    if(requiredParamKeys.isEmpty()) {
-        QVariantMap searchParamMap = parameters.value("searchMap").toMap();
-        if(searchParamMap.isEmpty() == false) {
-            QFutureWatcher<QString> *tmpWatcher = new QFutureWatcher<QString>();
-            m_pendingSearchResultWatchers.insert(t_callId, tmpWatcher);
-            connect(tmpWatcher, &QFutureWatcher<QString>::resultReadyAt, [this, t_callId, t_parameters, tmpWatcher](int t_resultPos){
-                QVariantMap tmpData = t_parameters;//writable copy
-                tmpData.insert(s_customerDataSearchResultText, tmpWatcher->future().resultAt(t_resultPos));
-                rpcProgress(t_callId, s_customerDataSearchProcedureName, tmpData);
-            });
-            connect(tmpWatcher, &QFutureWatcher<QString>::finished, [this, t_callId, t_parameters, tmpWatcher](){
-                m_pendingSearchResultWatchers.remove(t_callId);
-                QVariantMap retVal = t_parameters; //writable copy
-                retVal.insert(VeinComponent::RemoteProcedureData::s_resultCodeString, RPCResultCodes::CDS_SUCCESS);
-                rpcFinished(t_callId, s_customerDataSearchProcedureName, retVal);
-                tmpWatcher->deleteLater();
-            });
-            ///@todo make cancel accessible via rpc
-            connect(tmpWatcher, &QFutureWatcher<QString>::canceled, [this, t_callId, t_parameters, tmpWatcher](){
-                m_pendingSearchResultWatchers.remove(t_callId);
-                QVariantMap retVal = t_parameters; //writable copy
-                retVal.insert(VeinComponent::RemoteProcedureData::s_resultCodeString, RPCResultCodes::CDS_CANCELED);
-                rpcFinished(t_callId, s_customerDataSearchProcedureName, retVal);
-                tmpWatcher->deleteLater();
-            });
-            const QStringList entryList = QDir(MODMAN_CUSTOMERDATA_PATH, QStringLiteral("*.json")).entryList();
-            QFuture<QString> searchResultStream = QtConcurrent::filtered(entryList, [searchParamMap](const QString &t_fileName){
-                bool retVal = true;
-                QFile jsonFile(QString("%1%2").arg(MODMAN_CUSTOMERDATA_PATH).arg(t_fileName));
-                jsonFile.open(QFile::ReadOnly);
-                QJsonParseError parseError;
-                QJsonDocument currentDocument = QJsonDocument::fromJson(jsonFile.readAll(), &parseError);
-                if(parseError.error == QJsonParseError::NoError && currentDocument.isObject()) {
-                    const QJsonObject jsonObj = currentDocument.object();
-                    const QStringList searchKeys =  searchParamMap.keys();
-                    for(const QString &currentKey : qAsConst(searchKeys)) {
-                        Q_ASSERT(jsonObj.contains(currentKey));
-                        QRegExp searchRegexp(searchParamMap.value(currentKey).toString(), Qt::CaseInsensitive);
-                        if(jsonObj.value(currentKey).toString().contains(searchRegexp)) {
-                            retVal = true;
-                        }
-                        else { //currently only logical AND matching is supported
-                            retVal = false;
-                            break;
-                        }
-                    }
-                }
-                else {
-                    retVal = false;
-                }
-                return retVal;
-            });
-            tmpWatcher->setFuture(searchResultStream);
-        }
-    }
-    else
-    {
-        QVariantMap retVal = t_parameters;//writable copy
-        retVal.insert(VeinComponent::RemoteProcedureData::s_resultCodeString, RPCResultCodes::CDS_EINVAL);
-        retVal.insert(VeinComponent::RemoteProcedureData::s_errorMessageString, QString("Missing required parameters: [%1]").arg(requiredParamKeys.values().join(',')));
-        rpcFinished(t_callId, s_customerDataSearchProcedureName, retVal);
-    }
-}
 
 //constexpr definition, see: https://stackoverflow.com/questions/8016780/undefined-reference-to-static-constexpr-char
 constexpr QLatin1String CustomerDataSystem::s_entityName;
@@ -615,8 +545,6 @@ constexpr QLatin1String CustomerDataSystem::s_customerDataAddProcedureName;
 constexpr QLatin1String CustomerDataSystem::s_customerDataAddProcedureDescription;
 constexpr QLatin1String CustomerDataSystem::s_customerDataRemoveProcedureName;
 constexpr QLatin1String CustomerDataSystem::s_customerDataRemoveProcedureDescription;
-constexpr QLatin1String CustomerDataSystem::s_customerDataSearchProcedureName;
-constexpr QLatin1String CustomerDataSystem::s_customerDataSearchProcedureDescription;
 constexpr QLatin1String CustomerDataSystem::s_customerDataSearchResultText;
 constexpr QLatin1String CustomerDataSystem::s_cusomerDataRpcProgress;
 //base
