@@ -28,6 +28,7 @@ find_package(Qt5 COMPONENTS Core Gui Concurrent  CONFIG REQUIRED)
 find_package(VfComponent REQUIRED)
 find_package(VfHelpers REQUIRED)
 find_package(VfEvent REQUIRED)
+find_package(VfCpp REQUIRED)
 
 
 #sum up project Files 
@@ -63,6 +64,7 @@ target_link_libraries(VfCustomerdata
     VeinMeta::VfHelpers
     VeinMeta::VfEvent
     VeinMeta::VfComponent
+    VeinMeta::VfCpp
     )
 
 
