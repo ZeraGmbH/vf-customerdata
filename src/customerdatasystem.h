@@ -55,8 +55,6 @@ public slots:
     QVariant RPC_Open(QVariantMap p_params);
     QVariant RPC_Close(QVariantMap p_params);
     QVariant RPC_Save(QVariantMap p_params);
-    QVariant RPC_AddFile(QVariantMap p_params);
-    QVariant RPC_RemoveFile(QVariantMap p_params);
 
 private:
     VfCpp::VeinModuleEntity::Ptr m_entity;

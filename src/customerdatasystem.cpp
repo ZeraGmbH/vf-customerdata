@@ -64,7 +64,6 @@ void CustomerDataSystem::initOnce()
     m_entity->createRpc(this,"RPC_Open",{{"p_fileName", "QString"}});
     m_entity->createRpc(this,"RPC_Close",{{"p_save", "bool"}});
     m_entity->createRpc(this,"RPC_Save",{});
-    m_entity->createRpc(this,"RPC_RemoveFile",{{"p_fileName", "QString"}});
 
     m_fileSelected=m_entity->createComponent("FileSelected",QString(""),VfCpp::cVeinModuleComponent::Direction::out);
     QRegularExpression rx(".*\\.json");
@@ -183,54 +182,6 @@ QVariant CustomerDataSystem::RPC_Save(QVariantMap p_params)
     }
     return false;
 }
-
-QVariant CustomerDataSystem::RPC_AddFile(QVariantMap p_params)
-{
-    QString fileName = p_params["p_fileName"].toString();
-    if(fileName.isEmpty()){
-        return false;
-    }
-    QFile newCustomerDataFile(QString("%1%2").arg(m_customerDataPath).arg(fileName.toLower()));
-    if(newCustomerDataFile.exists() == false) {
-        QFileInfo fileInfo(newCustomerDataFile);
-        QFileInfo dirInfo(fileInfo.dir().absolutePath());
-        Q_ASSERT(dirInfo.isWritable()); //the path should be writable if no file exists
-        if(newCustomerDataFile.open(QIODevice::WriteOnly)) {
-            QJsonDocument dataDocument;
-            QJsonObject rootObject;
-            QList<QString> entries = m_fileEntrieComponents.keys();
-            for(const QString &entryName : qAsConst(entries)) {
-                rootObject.insert(entryName, QString());
-            }
-            dataDocument.setObject(rootObject);
-            newCustomerDataFile.write(dataDocument.toJson(QJsonDocument::Indented));
-            newCustomerDataFile.close();
-            return true;
-        }
-
-    }
-    return false;
-}
-
-QVariant CustomerDataSystem::RPC_RemoveFile(QVariantMap p_params)
-{
-    QString fileName=p_params["p_fileName"].toString();
-    if(!fileName.isEmpty()){
-        if(fileName == m_fileSelected.value()){
-            RPC_Close(QVariantMap({{"p_save",false}}));
-        }
-        QFile toDelete(QString("%1%2").arg(m_customerDataPath).arg(fileName));
-        if(fileName.isEmpty() == false && toDelete.exists()) {
-            if(toDelete.remove() == true) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-
-
 
 
 VfCpp::VeinModuleEntity* CustomerDataSystem::entity() const
