@@ -45,6 +45,8 @@ CustomerDataSystem::CustomerDataSystem(QString p_customerDataPath, int p_entityI
     }
 
     m_entity=VfCpp::VeinModuleEntity::Ptr(new VfCpp::VeinModuleEntity(p_entityId));
+
+    QObject::connect(m_entity.data() ,&VeinEvent::EventSystem::sigAttached,this,&CustomerDataSystem::initOnce);
 }
 
 
